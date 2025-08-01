@@ -859,6 +859,890 @@
                                 });
                                 suggestionsEl.classList.remove('hidden');
                             } else {
+                                suggestionsEl.classList.add('hidden');<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bright Minds - Student Results Portal</title>
+    
+    <!-- This HTML file creates a responsive student portal that displays results from a Google Sheet. -->
+    <!-- The design uses a dark theme with vibrant accents and is fully responsive for both desktop and mobile devices. -->
+    <!-- The application is built as a Single Page Application (SPA) with a modern aesthetic and includes several key features: -->
+    <!-- 1. **Results Dashboard:** Displays overall stats like total students and the top ranker. -->
+    <!-- 2. **Individual Results:** Allows a user to search for a student by name and view their scores, rank, and a performance chart. -->
+    <!-- 3. **Student Comparison:** Enables a side-by-side comparison of two students' results. -->
+    <!-- 4. **PDF Report Card:** Generates and downloads a detailed PDF report for any student. -->
+    <!-- 5. **Robustness and Error Handling:** This version includes improved error handling and a more reliable method for PDF generation to address previous issues. -->
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2n3sU9g54e7d1+f7k4j4G4t7wF7L4c1H4f4zQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Firebase Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // IMPORTANT: These are global variables required for the canvas environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db;
+        let auth;
+
+        // Initialize Firebase on window load
+        window.initFirebase = async function() {
+            try {
+                if (Object.keys(firebaseConfig).length > 0) {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    console.log('Firebase initialized.');
+                    
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log('Signed in with custom token.');
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log('Signed in anonymously.');
+                    }
+
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            console.log('Auth state changed. User is logged in with UID:', user.uid);
+                        } else {
+                            console.log('Auth state changed. User is logged out.');
+                        }
+                    });
+                } else {
+                    console.log('Firebase config not provided. Skipping initialization.');
+                }
+            } catch (error) {
+                console.error('Firebase initialization or authentication failed:', error);
+            }
+        };
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+        }
+        .text-gradient {
+            background-image: linear-gradient(to right, #6EE7B7, #3B82F6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
+        .card {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn-gradient {
+            background-image: linear-gradient(to right, #6EE7B7, #3B82F6);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        }
+        .btn-gradient:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        .animate-zoom-in {
+            animation: zoomIn 0.5s ease-out forwards;
+        }
+        .hidden {
+            display: none;
+        }
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: #1f2937;
+            color: #d1d5db;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+            width: 400px;
+            animation: zoomIn 0.3s ease-out forwards;
+        }
+
+        /* Print-specific CSS for the report card */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #report-card-print, #report-card-print * {
+                visibility: visible;
+            }
+            #report-card-print {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                font-family: 'Inter', sans-serif;
+                color: black;
+                background-color: white;
+            }
+            .card {
+                background-color: white;
+                border: 1px solid #e5e7eb;
+                box-shadow: none;
+            }
+            .text-gradient {
+                -webkit-text-fill-color: initial;
+                color: black;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <!-- Desktop Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 w-64 h-full bg-gray-800 p-6 hidden md:flex flex-col z-50 transition-transform duration-300 transform -translate-x-full md:translate-x-0">
+        <div class="flex-shrink-0 flex items-center justify-center mb-10">
+            <h1 class="text-3xl font-bold text-gradient">Bright Minds</h1>
+        </div>
+        <nav class="flex-grow">
+            <ul class="space-y-4">
+                <li><a href="#home-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-home"></i> <span>Home</span>
+                </a></li>
+                <li><a href="#results-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-chart-bar"></i> <span>Results</span>
+                </a></li>
+                <li><a href="#compare-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-balance-scale"></i> <span>Compare</span>
+                </a></li>
+                <li><a href="#messenger-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-comments"></i> <span>Messenger</span>
+                </a></li>
+            </ul>
+        </nav>
+        <div class="mt-auto">
+            <a href="#contact-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                <i class="fas fa-envelope"></i> <span>Contact</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <header class="md:hidden fixed top-0 left-0 w-full bg-gray-800/80 backdrop-blur-lg p-4 flex justify-between items-center z-50">
+        <h1 class="text-2xl font-bold text-gradient">Bright Minds</h1>
+        <button id="mobileMenuButton" class="text-gray-400 text-2xl focus:outline-none">
+            <i class="fas fa-bars"></i>
+        </button>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="md:ml-64 p-4 md:p-8 min-h-screen pt-24 pb-20 md:pt-8">
+        
+        <main class="w-full max-w-7xl mx-auto space-y-16">
+            
+            <!-- Home Section -->
+            <section id="home-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
+                    <header class="text-center mb-8">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Dashboard</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Welcome to your student portal!</p>
+                    </header>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="card p-6 rounded-xl text-center">
+                            <i class="fas fa-graduation-cap text-3xl text-blue-400 mb-2"></i>
+                            <p class="text-sm text-gray-400">Total Exams</p>
+                            <p class="text-4xl font-bold text-gradient">4</p>
+                        </div>
+                        <div class="card p-6 rounded-xl text-center">
+                            <i class="fas fa-users text-3xl text-purple-400 mb-2"></i>
+                            <p class="text-sm text-gray-400">Total Students</p>
+                            <p id="totalStudentsCount" class="text-4xl font-bold text-gradient">...</p>
+                        </div>
+                        <div class="card p-6 rounded-xl text-center">
+                            <i class="fas fa-award text-3xl text-yellow-400 mb-2"></i>
+                            <p class="text-sm text-gray-400">Top Ranker</p>
+                            <p id="topRankerName" class="text-lg font-bold text-gradient">...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
+                    <header class="text-center mb-8">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Your Results</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Enter your full name to view your performance report.</p>
+                    </header>
+                    <div class="max-w-xl mx-auto">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-500"></i>
+                            </div>
+                            <input type="text" id="searchInputHome" placeholder="Enter your full name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-200 bg-gray-800 border border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all duration-300 shadow-md">
+                            <ul id="suggestionsListHome" class="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
+                        </div>
+                    </div>
+                    
+                    <div id="results-area-home" class="mt-10 min-h-[200px] flex items-center justify-center">
+                        <div id="initialMessageHome" class="text-center text-gray-500 animate-fade-in">
+                            <p class="text-lg">Search for a student to see their results.</p>
+                        </div>
+                        <div id="loadingMessageHome" class="text-center text-gray-500 hidden">
+                            <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                            <p class="text-lg">Fetching latest results...</p>
+                        </div>
+                        <div id="errorMessageHome" class="text-center text-red-400 hidden">
+                            <p class="text-2xl font-bold">Error Loading Data</p>
+                            <p class="text-gray-400 mt-1">There was a problem fetching the results. Please try again later.</p>
+                        </div>
+                        <div id="notFoundMessageHome" class="text-center text-red-400 hidden">
+                            <p class="text-2xl font-bold">Student Not Found</p>
+                            <p class="text-gray-400 mt-1">Please check the spelling and try again.</p>
+                        </div>
+                        <div id="studentResultHome" class="w-full hidden animate-zoom-in">
+                            <h3 id="studentNameHome" class="text-3xl font-bold text-center text-gradient mb-6"></h3>
+                            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+                                <div id="report-details" class="lg:col-span-2 card rounded-xl p-4">
+                                    <div class="mb-6 bg-gray-800 rounded-lg shadow-inner p-4 text-center">
+                                        <p class="text-lg text-gray-400">Overall Rank: <span id="studentRankHome" class="font-bold text-2xl text-green-400"></span></p>
+                                    </div>
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center">Exam Scores</h4>
+                                    <table class="w-full text-left">
+                                        <thead>
+                                            <tr class="border-b-2 border-gray-700">
+                                                <th class="p-3 font-semibold text-gray-400">Exam</th>
+                                                <th class="p-3 font-semibold text-gray-400 text-right">Marks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="marksTableBodyHome">
+                                        </tbody>
+                                    </table>
+                                    <button id="downloadReportBtn" class="mt-6 w-full btn-gradient text-white font-bold py-3 px-6 rounded-full shadow-lg">
+                                        <i class="fas fa-download mr-2"></i> Download Report Card
+                                    </button>
+                                </div>
+                                <div id="report-chart" class="lg:col-span-3 card rounded-xl p-4 flex flex-col justify-center">
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center">Performance Trend vs. Class Average</h4>
+                                    <div class="chart-container">
+                                        <canvas id="marksChartHome"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Compare Section -->
+            <section id="compare-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
+                    <header class="text-center mb-8">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Compare Results</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Select two students to compare their performance side-by-side.</p>
+                    </header>
+                    <div class="max-w-4xl mx-auto">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="fas fa-user-tag text-gray-500"></i>
+                                </div>
+                                <input type="text" id="searchInputCompare1" placeholder="Student 1 name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-200 bg-gray-800 border border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all duration-300 shadow-md">
+                                <ul id="suggestionsListCompare1" class="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
+                            </div>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="fas fa-user-tag text-gray-500"></i>
+                                </div>
+                                <input type="text" id="searchInputCompare2" placeholder="Student 2 name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-200 bg-gray-800 border border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 shadow-md">
+                                <ul id="suggestionsListCompare2" class="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="comparison-area" class="mt-10 min-h-[200px] flex items-center justify-center">
+                        <div id="initialMessageCompare" class="text-center text-gray-500 animate-fade-in">
+                            <p class="text-lg">Select two students to view their comparison.</p>
+                        </div>
+                        <div id="loadingMessageCompare" class="text-center text-gray-500 hidden">
+                            <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                            <p class="text-lg">Comparing results...</p>
+                        </div>
+                        <div id="notFoundMessageCompare" class="text-center text-red-400 hidden">
+                            <p class="text-2xl font-bold">Comparison Failed</p>
+                            <p class="text-gray-400 mt-1">One or both students were not found.</p>
+                        </div>
+                        <div id="studentsComparison" class="w-full hidden animate-zoom-in">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                                <div id="student1-result-card" class="card rounded-xl p-4 border-l-4 border-green-400">
+                                    <h3 id="student1Name" class="text-2xl font-bold text-center text-gray-200 mb-4"></h3>
+                                    <p class="text-center text-gray-400">Rank: <span id="student1Rank" class="font-bold text-lg text-green-400"></span></p>
+                                    <div class="chart-container mt-6">
+                                        <canvas id="marksChartCompare1"></canvas>
+                                    </div>
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center mt-6">Exam Scores</h4>
+                                    <table class="w-full text-left">
+                                        <thead>
+                                            <tr class="border-b-2 border-gray-700">
+                                                <th class="p-3 font-semibold text-gray-400">Exam</th>
+                                                <th class="p-3 font-semibold text-gray-400 text-right">Marks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="marksTableBodyCompare1"></tbody>
+                                    </table>
+                                </div>
+                                <div id="student2-result-card" class="card rounded-xl p-4 border-l-4 border-purple-400">
+                                    <h3 id="student2Name" class="text-2xl font-bold text-center text-gray-200 mb-4"></h3>
+                                    <p class="text-center text-gray-400">Rank: <span id="student2Rank" class="font-bold text-lg text-purple-400"></span></p>
+                                    <div class="chart-container mt-6">
+                                        <canvas id="marksChartCompare2"></canvas>
+                                    </div>
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center mt-6">Exam Scores</h4>
+                                    <table class="w-full text-left">
+                                        <thead>
+                                            <tr class="border-b-2 border-gray-700">
+                                                <th class="p-3 font-semibold text-gray-400">Exam</th>
+                                                <th class="p-3 font-semibold text-gray-400 text-right">Marks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="marksTableBodyCompare2"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Messenger Section -->
+            <section id="messenger-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10 min-h-[500px]">
+                    <header class="text-center mb-8">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Messenger</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Awaiting chat feature implementation...</p>
+                    </header>
+                </div>
+            </section>
+
+            <!-- Contact Section -->
+            <section id="contact-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
+                    <header class="text-center mb-8">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Contact Admin</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Get in touch with the coaching center administrator.</p>
+                    </header>
+                    <div class="max-w-2xl mx-auto text-center text-gray-400 space-y-4">
+                        <p>For any queries or concerns, you can contact the administrator using the details below:</p>
+                        <p class="text-xl font-bold mt-4">
+                            <i class="fas fa-envelope text-blue-400 mr-2"></i> Email: <a href="mailto:princehoque2025@gmail.com" class="text-blue-400 hover:text-blue-200 transition-colors duration-200">princehoque2025@gmail.com</a>
+                        </p>
+                        <p class="text-xl font-bold">
+                            <i class="fas fa-phone-alt text-blue-400 mr-2"></i> Phone: <a href="tel:+8801982580534" class="text-blue-400 hover:text-blue-200 transition-colors duration-200">01982580534</a>
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Mobile Bottom Navigation -->
+        <nav id="mobile-nav" class="md:hidden fixed bottom-0 left-0 w-full bg-gray-800/80 backdrop-blur-lg border-t border-gray-700 shadow-lg z-50 transition-transform duration-300 transform translate-y-full">
+            <ul class="flex justify-around items-center h-16">
+                <li><a href="#home-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                    <i class="fas fa-home text-xl"></i>
+                    <span class="mt-1">Home</span>
+                </a></li>
+                <li><a href="#results-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                    <i class="fas fa-chart-bar text-xl"></i>
+                    <span class="mt-1">Results</span>
+                </a></li>
+                <li><a href="#compare-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                    <i class="fas fa-balance-scale text-xl"></i>
+                    <span class="mt-1">Compare</span>
+                </a></li>
+                <li><a href="#messenger-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                    <i class="fas fa-comments text-xl"></i>
+                    <span class="mt-1">Chat</span>
+                </a></li>
+            </ul>
+        </nav>
+
+        <footer class="text-center mt-8 text-gray-500 text-sm">
+            <p>&copy; <span id="currentYear"></span> Bright Minds Coaching Center. All rights reserved.</p>
+        </footer>
+    </div>
+    
+    <!-- Modal UI for Alerts/Errors -->
+    <div id="customModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="text-xl font-bold mb-4"></h3>
+            <p id="modalMessage" class="text-gray-400 mb-6"></p>
+            <button id="modalCloseBtn" class="w-full btn-gradient text-white font-bold py-2 rounded-lg">Close</button>
+        </div>
+    </div>
+
+    <!-- Hidden div for report card PDF generation -->
+    <div id="report-card-print" class="p-6 bg-white text-black" style="position: absolute; left: -9999px; width: 8.5in; min-height: 11in; color: black; background-color: white;">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold">Bright Minds Coaching Center</h1>
+            <p class="text-lg">English Batch Report Card</p>
+        </div>
+        <div class="flex justify-between items-center mb-4">
+            <p>Student Name: <span id="printStudentName" class="font-semibold"></span></p>
+            <p>Overall Rank: <span id="printStudentRank" class="font-semibold"></span></p>
+        </div>
+        <h2 class="text-xl font-bold mb-3">Exam Performance</h2>
+        <div id="print-chart-container" class="mb-6">
+            <canvas id="printChartCanvas" width="700" height="350"></canvas>
+        </div>
+        <h2 class="text-xl font-bold mb-3">Scores</h2>
+        <table class="min-w-full divide-y divide-gray-200 border border-gray-300">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Marks</th>
+                </tr>
+            </thead>
+            <tbody id="printTableBody" class="bg-white divide-y divide-gray-200">
+            </tbody>
+        </table>
+        <div class="mt-6 text-sm text-gray-500 text-center">
+            <p>Generated on <span id="printDate"></span></p>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Firebase services
+            if (typeof window.initFirebase === 'function') {
+                window.initFirebase();
+            }
+
+            // This is the correct URL for fetching data from the provided Google Sheet.
+            const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTVgt3oS2T0Eo3LE3_REouxZeMaTdtrTOPBdQxE1i4hVFZ_ytMs__cp4bTwC-ckQ7sGju2MDx9YqTzq/pubhtml?gid=0&single=true';
+            
+            // UI Element References
+            const searchInputHome = document.getElementById('searchInputHome');
+            const suggestionsListHome = document.getElementById('suggestionsListHome');
+            const initialMessageHome = document.getElementById('initialMessageHome');
+            const loadingMessageHome = document.getElementById('loadingMessageHome');
+            const errorMessageHome = document.getElementById('errorMessageHome');
+            const notFoundMessageHome = document.getElementById('notFoundMessageHome');
+            const studentResultHome = document.getElementById('studentResultHome');
+            const studentNameHomeEl = document.getElementById('studentNameHome');
+            const studentRankHomeEl = document.getElementById('studentRankHome');
+            const marksTableBodyHome = document.getElementById('marksTableBodyHome');
+            const marksCanvasHome = document.getElementById('marksChartHome');
+            const downloadReportBtn = document.getElementById('downloadReportBtn');
+            const totalStudentsCount = document.getElementById('totalStudentsCount');
+            const topRankerName = document.getElementById('topRankerName');
+
+            const searchInputCompare1 = document.getElementById('searchInputCompare1');
+            const suggestionsListCompare1 = document.getElementById('suggestionsListCompare1');
+            const searchInputCompare2 = document.getElementById('searchInputCompare2');
+            const suggestionsListCompare2 = document.getElementById('suggestionsListCompare2');
+            const initialMessageCompare = document.getElementById('initialMessageCompare');
+            const loadingMessageCompare = document.getElementById('loadingMessageCompare');
+            const notFoundMessageCompare = document.getElementById('notFoundMessageCompare');
+            const studentsComparison = document.getElementById('studentsComparison');
+            const student1NameEl = document.getElementById('student1Name');
+            const student1RankEl = document.getElementById('student1Rank');
+            const marksTableBodyCompare1 = document.getElementById('marksTableBodyCompare1');
+            const marksCanvasCompare1 = document.getElementById('marksChartCompare1');
+            const student2NameEl = document.getElementById('student2Name');
+            const student2RankEl = document.getElementById('student2Rank');
+            const marksTableBodyCompare2 = document.getElementById('marksTableBodyCompare2');
+            const marksCanvasCompare2 = document.getElementById('marksChartCompare2');
+
+            const mobileMenuButton = document.getElementById('mobileMenuButton');
+            const mobileNav = document.getElementById('mobile-nav');
+
+            const customModal = document.getElementById('customModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+            
+            // Global Data and State
+            let studentsData = [];
+            let examAverages = {};
+            let charts = {};
+            let debounceTimeout = null;
+            let lastSearchQueryHome = '';
+            let lastSearchQueryCompare1 = '';
+            let lastSearchQueryCompare2 = '';
+            const examKeys = ['1st Terminal', 'Model Test 1', '2nd Terminal', 'Final Exam'];
+
+            // Function to show a custom modal instead of alert()
+            const showModal = (title, message) => {
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                customModal.classList.remove('hidden');
+            };
+
+            // Event listener to close the modal
+            modalCloseBtn.addEventListener('click', () => {
+                customModal.classList.add('hidden');
+            });
+            
+            // Function to fetch and process data from the Google Sheet
+            const fetchData = async () => {
+                // Show loading states only on first load
+                if (studentsData.length === 0) {
+                    loadingMessageHome.classList.remove('hidden');
+                    loadingMessageCompare.classList.remove('hidden');
+                    initialMessageHome.classList.add('hidden');
+                    initialMessageCompare.classList.add('hidden');
+                }
+                
+                try {
+                    const response = await fetch(SPREADSHEET_URL);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const text = await response.text();
+                    
+                    // Check if the response contains the expected JSON
+                    const match = text.match(/google\.visualization\.Query\.setResponse\((.*)\);/);
+                    if (!match || !match[1]) {
+                        throw new Error('Invalid response format from Google Sheet.');
+                    }
+                    
+                    const json = JSON.parse(match[1]);
+                    
+                    const headers = json.table.cols.map(col => col.label).filter(Boolean);
+                    const rawStudents = json.table.rows.map(row => {
+                        const student = {};
+                        row.c.forEach((cell, index) => {
+                            if (headers[index] && cell) {
+                                student[headers[index]] = cell.v;
+                            }
+                        });
+                        return student;
+                    }).filter(s => s.Name);
+                    
+                    studentsData = rawStudents.map(student => {
+                        const marks = {};
+                        examKeys.forEach(exam => {
+                            marks[exam] = student[exam] || 0;
+                        });
+                        const total = student['Total'];
+                        return { ...student, marks, total };
+                    });
+
+                    // Sort by total marks to determine rank
+                    studentsData.sort((a, b) => b.total - a.total);
+                    studentsData.forEach((student, index) => {
+                        student.rank = index + 1;
+                    });
+                    
+                    // Calculate class averages for the chart
+                    examKeys.forEach(exam => {
+                        const totalMarks = studentsData.reduce((sum, s) => sum + (s.marks[exam] || 0), 0);
+                        examAverages[exam] = (totalMarks / studentsData.length).toFixed(2);
+                    });
+
+                    // Update dashboard stats
+                    totalStudentsCount.textContent = studentsData.length;
+                    topRankerName.textContent = studentsData[0]?.Name || 'N/A';
+                    
+                    // Log data to console for debugging
+                    console.log("Fetched and processed student data:", studentsData);
+                    console.log("Calculated exam averages:", examAverages);
+
+                    // Re-render any visible results with the new data
+                    if (lastSearchQueryHome) {
+                        handleSearch(lastSearchQueryHome, 'searchInputHome');
+                    }
+                    if (lastSearchQueryCompare1 || lastSearchQueryCompare2) {
+                        compareStudents();
+                    }
+
+                } catch (error) {
+                    console.error("Failed to fetch or process data:", error);
+                    errorMessageHome.classList.remove('hidden');
+                    showModal('Data Error', 'Could not fetch results data. Please check the network connection and ensure the Google Sheet is publicly accessible.');
+                } finally {
+                    loadingMessageHome.classList.add('hidden');
+                    loadingMessageCompare.classList.add('hidden');
+                    if (studentsData.length === 0 && !errorMessageHome.classList.contains('hidden')) {
+                        // Keep error message visible if there's an issue
+                    } else if (studentsData.length === 0) {
+                        initialMessageHome.classList.remove('hidden');
+                        initialMessageCompare.classList.remove('hidden');
+                    }
+                }
+            };
+
+            // Function to generate and render a chart
+            const renderChart = (canvasId, studentData, student2Data = null) => {
+                if (charts[canvasId]) {
+                    charts[canvasId].destroy();
+                }
+
+                const datasets = [{
+                    label: studentData.Name,
+                    data: Object.values(studentData.marks),
+                    borderColor: '#6EE7B7',
+                    backgroundColor: 'rgba(110, 231, 183, 0.2)',
+                    tension: 0.4,
+                    pointBackgroundColor: '#6EE7B7',
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 6,
+                }];
+
+                if (student2Data) {
+                    datasets.push({
+                        label: student2Data.Name,
+                        data: Object.values(student2Data.marks),
+                        borderColor: '#A78BFA',
+                        backgroundColor: 'rgba(167, 139, 250, 0.2)',
+                        tension: 0.4,
+                        pointBackgroundColor: '#A78BFA',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                    });
+                } else {
+                    // Add class average for single student view
+                    datasets.push({
+                        label: 'Class Average',
+                        data: Object.values(examAverages),
+                        borderColor: '#F87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.2)',
+                        tension: 0.4,
+                        pointBackgroundColor: '#F87171',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        borderDash: [5, 5]
+                    });
+                }
+
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                charts[canvasId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: examKeys,
+                        datasets: datasets,
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: '#d1d5db', font: { family: 'Inter' } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: (tooltipItems) => tooltipItems[0].label,
+                                    label: (context) => `${context.dataset.label || ''}: ${context.raw}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#374151' },
+                                ticks: { color: '#d1d5db', font: { family: 'Inter' } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#d1d5db', font: { family: 'Inter' } }
+                            }
+                        }
+                    }
+                });
+            };
+
+            // Function to display individual student results
+            const displayIndividualResults = (student, containerId, nameElId, rankElId, tableBodyId, canvasId) => {
+                const nameEl = document.getElementById(nameElId);
+                const rankEl = document.getElementById(rankElId);
+                const tableBody = document.getElementById(tableBodyId);
+                const container = document.getElementById(containerId);
+                
+                nameEl.textContent = student.Name;
+                rankEl.textContent = student.rank;
+                
+                tableBody.innerHTML = '';
+                for (const [exam, score] of Object.entries(student.marks)) {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-700/50 last:border-b-0 transition-colors duration-200 hover:bg-gray-800/50';
+                    row.innerHTML = `<td class="p-3">${exam}</td><td class="p-3 text-right font-medium text-gray-200">${score}</td>`;
+                    tableBody.appendChild(row);
+                }
+                const totalRow = document.createElement('tr');
+                totalRow.className = 'bg-gray-800/50';
+                totalRow.innerHTML = `<td class="p-3 font-bold text-gray-200">Total</td><td class="p-3 text-right font-bold text-green-400">${student.total}</td>`;
+                tableBody.appendChild(totalRow);
+
+                renderChart(canvasId, student);
+                container.classList.remove('hidden');
+            };
+
+            // Function to handle PDF generation
+            const downloadReportCard = async (student) => {
+                try {
+                    const printContainer = document.getElementById('report-card-print');
+                    const printStudentName = document.getElementById('printStudentName');
+                    const printStudentRank = document.getElementById('printStudentRank');
+                    const printTableBody = document.getElementById('printTableBody');
+                    const printDate = document.getElementById('printDate');
+                    const printChartCanvas = document.getElementById('printChartCanvas');
+                    
+                    // Populate the hidden print div
+                    printStudentName.textContent = student.Name;
+                    printStudentRank.textContent = student.rank;
+                    printDate.textContent = new Date().toLocaleDateString();
+
+                    printTableBody.innerHTML = '';
+                    for (const [exam, score] of Object.entries(student.marks)) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `<td class="px-6 py-3">${exam}</td><td class="px-6 py-3 text-right">${score}</td>`;
+                        printTableBody.appendChild(row);
+                    }
+                    const totalRow = document.createElement('tr');
+                    totalRow.innerHTML = `<td class="px-6 py-3 font-bold">Total</td><td class="px-6 py-3 text-right font-bold">${student.total}</td>`;
+                    printTableBody.appendChild(totalRow);
+                    
+                    // Temporarily move the print container into view for html2canvas
+                    printContainer.style.position = 'static';
+                    
+                    // Copy the chart data to a temporary chart for printing
+                    if (charts['printChart']) {
+                        charts['printChart'].destroy();
+                    }
+                    
+                    const tempChartData = {
+                        labels: examKeys,
+                        datasets: [{
+                            label: 'Your Marks',
+                            data: Object.values(student.marks),
+                            borderColor: '#6EE7B7',
+                            backgroundColor: 'rgba(110, 231, 183, 0.2)',
+                            tension: 0.4,
+                        },{
+                            label: 'Class Average',
+                            data: Object.values(examAverages),
+                            borderColor: '#F87171',
+                            backgroundColor: 'rgba(248, 113, 113, 0.2)',
+                            tension: 0.4,
+                            borderDash: [5, 5]
+                        }]
+                    };
+
+                    const tempCtx = printChartCanvas.getContext('2d');
+                    charts['printChart'] = new Chart(tempCtx, {
+                        type: 'line',
+                        data: tempChartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: { font: { family: 'Inter' } }
+                                }
+                            }
+                        }
+                    });
+
+                    // Use html2canvas and jsPDF to create the PDF
+                    const canvas = await html2canvas(printContainer, { scale: 2, useCORS: true });
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'in', 'letter');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`${student.Name.replace(/\s/g, '_')}_Report_Card.pdf`);
+
+                    // Hide the print container again
+                    printContainer.style.position = 'absolute';
+
+                } catch (error) {
+                    console.error('PDF generation failed:', error);
+                    showModal('Download Error', 'Could not generate the report card. Please try again.');
+                }
+            };
+
+            downloadReportBtn.addEventListener('click', () => {
+                const studentName = searchInputHome.value;
+                const student = studentsData.find(s => s.Name.toLowerCase() === studentName.toLowerCase());
+                if (student) {
+                    downloadReportCard(student);
+                } else {
+                    showModal('Download Failed', 'Please select a valid student to download the report.');
+                }
+            });
+
+            // Reusable search and suggestion logic
+            const setupSearchInput = (inputEl, suggestionsEl, targetSection) => {
+                inputEl.addEventListener('input', () => {
+                    clearTimeout(debounceTimeout);
+                    debounceTimeout = setTimeout(() => {
+                        const query = inputEl.value.toLowerCase();
+                        if (targetSection === 'home') lastSearchQueryHome = query;
+                        else if (targetSection === 'compare1') lastSearchQueryCompare1 = query;
+                        else lastSearchQueryCompare2 = query;
+
+                        suggestionsEl.innerHTML = '';
+                        if (query.length > 0) {
+                            const filteredStudents = studentsData.filter(s => s.Name.toLowerCase().includes(query)).slice(0, 5);
+                            if (filteredStudents.length > 0) {
+                                filteredStudents.forEach(student => {
+                                    const li = document.createElement('li');
+                                    li.textContent = student.Name;
+                                    li.className = 'px-4 py-2 cursor-pointer hover:bg-gray-700 transition-colors duration-200';
+                                    li.addEventListener('click', () => {
+                                        inputEl.value = student.Name;
+                                        suggestionsEl.classList.add('hidden');
+                                        if (targetSection === 'home') {
+                                            const foundStudent = studentsData.find(s => s.Name === student.Name);
+                                            if (foundStudent) {
+                                                displayIndividualResults(foundStudent, 'studentResultHome', 'studentNameHome', 'studentRankHome', 'marksTableBodyHome', 'marksChartHome');
+                                                initialMessageHome.classList.add('hidden');
+                                                notFoundMessageHome.classList.add('hidden');
+                                            }
+                                        } else {
+                                            compareStudents();
+                                        }
+                                    });
+                                    suggestionsEl.appendChild(li);
+                                });
+                                suggestionsEl.classList.remove('hidden');
+                            } else {
                                 suggestionsEl.classList.add('hidden');
                             }
                         } else {
@@ -934,3 +1818,4 @@
     </script>
 </body>
 </html>
+
