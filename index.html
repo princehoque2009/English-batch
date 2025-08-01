@@ -3,51 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bright Minds - English Batch Results</title>
+    <title>Bright Minds - Student Results Portal</title>
     
-    <!-- Chosen Palette: Academic Blues & Creams (Deep Blue, Cream, Teal, and Coral). -->
-    <!-- Application Structure Plan: The single-view dashboard has evolved into a multi-section SPA. The new navigation menu provides a clear information architecture with sections for Home (individual results), Compare (side-by-side analysis), and Contact. This structure separates core user tasks into distinct areas, improving discoverability and ease of use. A user can now move seamlessly between finding their own results and comparing their performance with a classmate, all within the same page. The new background design with books and pens visually reinforces the academic theme. -->
+    <!-- Chosen Palette: Modern Dark Theme with Vibrant Accents. -->
+    <!-- Application Structure Plan: A multi-section SPA with a dark theme. The new navigation menu provides clear access to sections for Home (individual results), Compare (side-by-side analysis), and Contact. The layout is fully responsive, using a sidebar for desktop and a bottom navigation for mobile, improving discoverability and ease of use. The UI is designed for a polished, high-graphic feel. -->
     <!-- Visualization & Content Choices: 
-        - Report Info: Student names. Goal: Facilitate user interaction. Viz/Presentation: Dynamic list of suggestions below the search box. Interaction: As the user types, the list filters and updates; clicking a name populates the search field and triggers the display of results. Justification: This proactive UI element streamlines the search process and provides instant feedback, significantly improving the user experience.
-        - Report Info: Student names and exam scores. Goal: Inform, Compare, and Analyze Trend. Viz/Presentation: HTML Table for precise data lookup and a Chart.js Line Chart for visual comparison against the class average over time. A new dual-chart view is used for the 'Compare' section. Interaction: The charts and tables dynamically update based on the student(s) selected. Justification: A line chart is the ideal visualization for showing trends, and the class average line provides crucial context for performance. The table remains for exact numbers. The dual-chart view is a direct response to the 'Compare' functionality, making the comparison highly intuitive.
+        - Report Info: Student names. Goal: Facilitate user interaction. Viz/Presentation: Dynamic list of suggestions below the search box. Interaction: As the user types, the list filters; clicking a name populates the search field and triggers the display of results. Justification: This proactive UI element streamlines the search process and provides instant feedback, significantly improving the user experience.
+        - Report Info: Student names and exam scores. Goal: Inform, Compare, and Analyze Trend. Viz/Presentation: HTML Table for precise data lookup and a Chart.js Bar Chart for visual comparison against the class average. A new dual-chart view is used for the 'Compare' section. Interaction: The charts and tables dynamically update based on the student(s) selected. Justification: A bar chart is better for comparing discrete data points (like exam scores) and the class average line provides crucial context. The dual-chart view is a direct response to the 'Compare' functionality.
         - Report Info: Student's rank. Goal: Inform. Viz/Presentation: Textual display in a prominent UI element. Interaction: Updates with student selection. Justification: Ranking is a key performance metric for students, and displaying it clearly adds significant value.
-        - Library/Method: Vanilla JS for all logic, including the suggestion system and data processing, and Chart.js (Canvas) for the line charts.
+        - Library/Method: Vanilla JS for all logic, including the suggestion system and data processing. Chart.js (Canvas) for the bar charts. html2canvas and jsPDF for the new "Download Report Card" feature.
     -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
-
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2n3sU9g54e7d1+f7k4j4G4t7wF7L4c1H4f4zQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Firebase Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // IMPORTANT: These are global variables required for the canvas environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db;
+        let auth;
+
+        // Initialize Firebase on window load
+        window.initFirebase = async function() {
+            try {
+                if (Object.keys(firebaseConfig).length > 0) {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    console.log('Firebase initialized.');
+                    
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log('Signed in with custom token.');
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log('Signed in anonymously.');
+                    }
+
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            console.log('Auth state changed. User is logged in.');
+                        } else {
+                            console.log('Auth state changed. User is logged out.');
+                        }
+                    });
+                } else {
+                    console.log('Firebase config not provided. Skipping initialization.');
+                }
+            } catch (error) {
+                console.error('Firebase initialization or authentication failed:', error);
+            }
+        };
+    </script>
 
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
-            background-image: radial-gradient(circle at top left, rgba(239, 246, 255, 0.5), transparent), radial-gradient(circle at bottom right, rgba(224, 242, 254, 0.5), transparent);
-        }
-        .font-inter {
             font-family: 'Inter', sans-serif;
+            background-color: #111827;
         }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.4);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        .text-gradient {
+            background-image: linear-gradient(to right, #6EE7B7, #3B82F6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
         }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 300px;
-            max-height: 40vh;
+        .card {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
-        @media (min-width: 768px) {
-            .chart-container {
-                height: 350px;
-            }
+        .btn-gradient {
+            background-image: linear-gradient(to right, #6EE7B7, #3B82F6);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        }
+        .btn-gradient:active {
+            transform: translateY(0);
+            box-shadow: none;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -66,120 +116,190 @@
         .hidden {
             display: none;
         }
-        .background-pattern {
+        /* Mobile navigation styles */
+        @media (max-width: 767px) {
+            .mobile-nav {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Modal styling */
+        .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
-            z-index: -1;
-            overflow: hidden;
-            opacity: 0.1;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
         }
-        .background-pattern span {
-            position: absolute;
-            font-size: 2rem;
-            color: #4b5563;
+        .modal-content {
+            background-color: #1f2937;
+            color: #d1d5db;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+            width: 400px;
+            animation: zoomIn 0.3s ease-out forwards;
         }
-        .nav-link.active {
-            font-weight: 600;
-            color: #3182CE;
-            border-bottom: 2px solid #3182CE;
+
+        /* Print-specific CSS for the report card */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #report-card-print, #report-card-print * {
+                visibility: visible;
+            }
+            #report-card-print {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                font-family: 'Inter', sans-serif;
+                color: black;
+                background-color: white;
+            }
+            .card {
+                background-color: white;
+                border: 1px solid #e5e7eb;
+                box-shadow: none;
+            }
+            .text-gradient {
+                -webkit-text-fill-color: initial;
+                color: black;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-900 text-gray-200">
 
-    <div class="background-pattern">
-        <span style="top: 10%; left: 5%; transform: rotate(15deg);">📚</span>
-        <span style="top: 25%; left: 70%; transform: rotate(-25deg);">✏️</span>
-        <span style="top: 50%; left: 30%; transform: rotate(30deg);">📚</span>
-        <span style="top: 75%; left: 15%; transform: rotate(-10deg);">✏️</span>
-        <span style="top: 60%; left: 85%; transform: rotate(45deg);">📚</span>
-        <span style="top: 90%; left: 40%; transform: rotate(-5deg);">✏️</span>
-        <span style="top: 40%; left: 95%; transform: rotate(20deg);">📚</span>
-    </div>
-
-    <header class="fixed top-0 left-0 w-full bg-white/70 backdrop-blur-lg shadow-md z-50">
-        <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <a href="#" class="text-2xl font-bold text-gray-800">Bright Minds</a>
-            <div class="hidden md:flex space-x-6">
-                <a href="#home-section" class="nav-link text-gray-600 hover:text-blue-500 transition-colors duration-200">Home</a>
-                <a href="#compare-section" class="nav-link text-gray-600 hover:text-blue-500 transition-colors duration-200">Compare</a>
-                <a href="#contact-section" class="nav-link text-gray-600 hover:text-blue-500 transition-colors duration-200">Contact Admin</a>
-            </div>
-            <!-- Mobile Menu -->
-            <button id="mobileMenuButton" class="md:hidden text-gray-600 focus:outline-none">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
-                </svg>
-            </button>
-        </nav>
-        <div id="mobileMenu" class="md:hidden hidden bg-white/70 backdrop-blur-lg shadow-inner">
-            <a href="#home-section" class="block py-2 px-4 text-gray-600 hover:bg-gray-100/50 transition-colors duration-200">Home</a>
-            <a href="#compare-section" class="block py-2 px-4 text-gray-600 hover:bg-gray-100/50 transition-colors duration-200">Compare</a>
-            <a href="#contact-section" class="block py-2 px-4 text-gray-600 hover:bg-gray-100/50 transition-colors duration-200">Contact Admin</a>
+    <!-- Desktop Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 w-64 h-full bg-gray-800 p-6 hidden md:flex flex-col z-50 transition-transform duration-300 transform -translate-x-full md:translate-x-0">
+        <div class="flex-shrink-0 flex items-center justify-center mb-10">
+            <h1 class="text-3xl font-bold text-gradient">Bright Minds</h1>
         </div>
+        <nav class="flex-grow">
+            <ul class="space-y-4">
+                <li><a href="#home-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-home"></i> <span>Home</span>
+                </a></li>
+                <li><a href="#results-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-chart-bar"></i> <span>Results</span>
+                </a></li>
+                <li><a href="#compare-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-balance-scale"></i> <span>Compare</span>
+                </a></li>
+                <li><a href="#messenger-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                    <i class="fas fa-comments"></i> <span>Messenger</span>
+                </a></li>
+            </ul>
+        </nav>
+        <div class="mt-auto">
+            <a href="#contact-section" class="sidebar-link flex items-center space-x-3 text-lg text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-lg">
+                <i class="fas fa-envelope"></i> <span>Contact</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <header class="md:hidden fixed top-0 left-0 w-full bg-gray-800/80 backdrop-blur-lg p-4 flex justify-between items-center z-50">
+        <h1 class="text-2xl font-bold text-gradient">Bright Minds</h1>
+        <button id="mobileMenuButton" class="text-gray-400 text-2xl focus:outline-none">
+            <i class="fas fa-bars"></i>
+        </button>
     </header>
 
-    <div class="min-h-screen pt-24 pb-8 flex flex-col items-center p-4">
+    <!-- Main Content Area -->
+    <div class="md:ml-64 p-4 md:p-8 min-h-screen pt-24 pb-20 md:pt-8">
         
-        <main class="w-full max-w-4xl mx-auto flex flex-col space-y-16">
+        <main class="w-full max-w-7xl mx-auto space-y-16">
             
-            <section id="home-section" class="w-full animate-fade-in">
-                <div class="glass-effect rounded-2xl shadow-2xl shadow-indigo-100 p-6 md:p-10">
+            <!-- Home Section -->
+            <section id="home-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
                     <header class="text-center mb-8">
-                        <h1 class="text-4xl md:text-5xl font-bold text-gray-800">Your Results</h1>
-                        <p class="text-lg md:text-xl text-gray-600 mt-1">English Batch Results Portal</p>
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Dashboard</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Welcome to your student portal!</p>
                     </header>
-                    <div class="max-w-2xl mx-auto">
-                        <p class="text-center text-gray-700 mb-4">
-                            Welcome! To find your results, please enter your full name in the search box below
-                        </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="card p-6 rounded-xl text-center">
+                            <i class="fas fa-graduation-cap text-3xl text-blue-400 mb-2"></i>
+                            <p class="text-sm text-gray-400">Total Exams</p>
+                            <p class="text-4xl font-bold text-gradient">4</p>
+                        </div>
+                        <div class="card p-6 rounded-xl text-center">
+                            <i class="fas fa-users text-3xl text-purple-400 mb-2"></i>
+                            <p class="text-sm text-gray-400">Total Students</p>
+                            <p id="totalStudentsCount" class="text-4xl font-bold text-gradient">...</p>
+                        </div>
+                        <div class="card p-6 rounded-xl text-center">
+                            <i class="fas fa-award text-3xl text-yellow-400 mb-2"></i>
+                            <p class="text-sm text-gray-400">Top Ranker</p>
+                            <p id="topRankerName" class="text-lg font-bold text-gradient">...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
+                    <header class="text-center mb-8">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Your Results</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Enter your full name to view your performance report.</p>
+                    </header>
+                    <div class="max-w-xl mx-auto">
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
-                                </svg>
+                                <i class="fas fa-search text-gray-500"></i>
                             </div>
-                            <input type="text" id="searchInputHome" placeholder="Enter your full name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-800 bg-white/80 border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all duration-300 shadow-md">
-                            <ul id="suggestionsListHome" class="absolute z-10 w-full mt-2 glass-effect rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
+                            <input type="text" id="searchInputHome" placeholder="Enter your full name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-200 bg-gray-800 border border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all duration-300 shadow-md">
+                            <ul id="suggestionsListHome" class="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
                         </div>
                     </div>
                     
                     <div id="results-area-home" class="mt-10 min-h-[200px] flex items-center justify-center">
                         <div id="initialMessageHome" class="text-center text-gray-500 animate-fade-in">
-                            <p class="text-lg">Your results will appear here.</p>
+                            <p class="text-lg">Search for a student to see their results.</p>
                         </div>
                         <div id="loadingMessageHome" class="text-center text-gray-500 hidden">
+                            <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
                             <p class="text-lg">Fetching latest results...</p>
                         </div>
-                        <div id="notFoundMessageHome" class="text-center text-red-600 hidden">
+                        <div id="notFoundMessageHome" class="text-center text-red-400 hidden">
                             <p class="text-2xl font-bold">Student Not Found</p>
-                            <p class="text-gray-600 mt-1">Please check the spelling and try again.</p>
+                            <p class="text-gray-400 mt-1">Please check the spelling and try again.</p>
                         </div>
                         <div id="studentResultHome" class="w-full hidden animate-zoom-in">
-                            <h2 id="studentNameHome" class="text-3xl font-bold text-center text-gray-800 mb-6"></h2>
-                            <div class="mb-6 bg-white/80 rounded-xl shadow-lg p-4 text-center">
-                                <p class="text-lg text-gray-700">Overall Rank: <span id="studentRankHome" class="font-bold text-xl text-teal-600"></span></p>
-                            </div>
+                            <h3 id="studentNameHome" class="text-3xl font-bold text-center text-gradient mb-6"></h3>
                             <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-                                <div class="lg:col-span-2 bg-white/80 rounded-xl shadow-lg p-4">
-                                     <h3 class="font-bold text-lg text-gray-700 mb-3 text-center">Exam Scores</h3>
+                                <div id="report-details" class="lg:col-span-2 card rounded-xl p-4">
+                                    <div class="mb-6 bg-gray-800 rounded-lg shadow-inner p-4 text-center">
+                                        <p class="text-lg text-gray-400">Overall Rank: <span id="studentRankHome" class="font-bold text-2xl text-green-400"></span></p>
+                                    </div>
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center">Exam Scores</h4>
                                     <table class="w-full text-left">
                                         <thead>
-                                            <tr class="border-b-2 border-gray-200">
-                                                <th class="p-3 font-semibold text-gray-600">Exam</th>
-                                                <th class="p-3 font-semibold text-gray-600 text-right">Marks</th>
+                                            <tr class="border-b-2 border-gray-700">
+                                                <th class="p-3 font-semibold text-gray-400">Exam</th>
+                                                <th class="p-3 font-semibold text-gray-400 text-right">Marks</th>
                                             </tr>
                                         </thead>
                                         <tbody id="marksTableBodyHome">
                                         </tbody>
                                     </table>
+                                    <button id="downloadReportBtn" class="mt-6 w-full btn-gradient text-white font-bold py-3 px-6 rounded-full shadow-lg">
+                                        <i class="fas fa-download mr-2"></i> Download Report Card
+                                    </button>
                                 </div>
-                                <div class="lg:col-span-3 bg-white/80 rounded-xl shadow-lg p-4">
-                                    <h3 class="font-bold text-lg text-gray-700 mb-3 text-center">Performance Trend vs. Class Average</h3>
+                                <div id="report-chart" class="lg:col-span-3 card rounded-xl p-4 flex flex-col justify-center">
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center">Performance Trend vs. Class Average</h4>
                                     <div class="chart-container">
                                         <canvas id="marksChartHome"></canvas>
                                     </div>
@@ -190,117 +310,194 @@
                 </div>
             </section>
             
-            <section id="compare-section" class="w-full animate-fade-in">
-                <div class="glass-effect rounded-2xl shadow-2xl shadow-indigo-100 p-6 md:p-10">
+            <!-- Compare Section -->
+            <section id="compare-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
                     <header class="text-center mb-8">
-                        <h2 class="text-4xl md:text-5xl font-bold text-gray-800">Compare Results</h2>
-                        <p class="text-lg md:text-xl text-gray-600 mt-1">Select two students to compare their performance</p>
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Compare Results</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Select two students to compare their performance side-by-side.</p>
                     </header>
                     <div class="max-w-4xl mx-auto">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
-                                </svg>
+                                    <i class="fas fa-user-tag text-gray-500"></i>
+                                </div>
+                                <input type="text" id="searchInputCompare1" placeholder="Student 1 name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-200 bg-gray-800 border border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all duration-300 shadow-md">
+                                <ul id="suggestionsListCompare1" class="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
                             </div>
-                            <input type="text" id="searchInputCompare1" placeholder="Student 1 name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-800 bg-white/80 border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all duration-300 shadow-md">
-                            <ul id="suggestionsListCompare1" class="absolute z-10 w-full mt-2 glass-effect rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
-                        </div>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
-                                </svg>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="fas fa-user-tag text-gray-500"></i>
+                                </div>
+                                <input type="text" id="searchInputCompare2" placeholder="Student 2 name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-200 bg-gray-800 border border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 shadow-md">
+                                <ul id="suggestionsListCompare2" class="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
                             </div>
-                            <input type="text" id="searchInputCompare2" placeholder="Student 2 name..." class="w-full pl-12 pr-4 py-3 font-inter text-gray-800 bg-white/80 border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all duration-300 shadow-md">
-                            <ul id="suggestionsListCompare2" class="absolute z-10 w-full mt-2 glass-effect rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
                         </div>
                     </div>
-                </div>
-                <div id="comparison-area" class="mt-10 min-h-[200px] flex items-center justify-center">
-                    <div id="initialMessageCompare" class="text-center text-gray-500 animate-fade-in">
-                        <p class="text-lg">Select two students to view their comparison.</p>
-                    </div>
-                    <div id="loadingMessageCompare" class="text-center text-gray-500 hidden">
-                        <p class="text-lg">Comparing results...</p>
-                    </div>
-                    <div id="notFoundMessageCompare" class="text-center text-red-600 hidden">
-                        <p class="text-2xl font-bold">Comparison Failed</p>
-                        <p class="text-gray-600 mt-1">One or both students were not found.</p>
-                    </div>
-                    <div id="studentsComparison" class="w-full hidden animate-zoom-in">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                            <div id="student1-result-card" class="bg-white/80 rounded-xl shadow-lg p-4">
-                                <h3 id="student1Name" class="text-2xl font-bold text-center text-gray-800 mb-4"></h3>
-                                <p class="text-center text-gray-700">Rank: <span id="student1Rank" class="font-bold text-lg text-teal-600"></span></p>
-                                <div class="chart-container mt-6">
-                                    <canvas id="marksChartCompare1"></canvas>
+                    <div id="comparison-area" class="mt-10 min-h-[200px] flex items-center justify-center">
+                        <div id="initialMessageCompare" class="text-center text-gray-500 animate-fade-in">
+                            <p class="text-lg">Select two students to view their comparison.</p>
+                        </div>
+                        <div id="loadingMessageCompare" class="text-center text-gray-500 hidden">
+                            <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                            <p class="text-lg">Comparing results...</p>
+                        </div>
+                        <div id="notFoundMessageCompare" class="text-center text-red-400 hidden">
+                            <p class="text-2xl font-bold">Comparison Failed</p>
+                            <p class="text-gray-400 mt-1">One or both students were not found.</p>
+                        </div>
+                        <div id="studentsComparison" class="w-full hidden animate-zoom-in">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                                <div id="student1-result-card" class="card rounded-xl p-4 border-l-4 border-green-400">
+                                    <h3 id="student1Name" class="text-2xl font-bold text-center text-gray-200 mb-4"></h3>
+                                    <p class="text-center text-gray-400">Rank: <span id="student1Rank" class="font-bold text-lg text-green-400"></span></p>
+                                    <div class="chart-container mt-6">
+                                        <canvas id="marksChartCompare1"></canvas>
+                                    </div>
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center mt-6">Exam Scores</h4>
+                                    <table class="w-full text-left">
+                                        <thead>
+                                            <tr class="border-b-2 border-gray-700">
+                                                <th class="p-3 font-semibold text-gray-400">Exam</th>
+                                                <th class="p-3 font-semibold text-gray-400 text-right">Marks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="marksTableBodyCompare1"></tbody>
+                                    </table>
                                 </div>
-                                <h4 class="font-bold text-lg text-gray-700 mb-3 text-center mt-6">Exam Scores</h4>
-                                <table class="w-full text-left">
-                                    <thead>
-                                        <tr class="border-b-2 border-gray-200">
-                                            <th class="p-3 font-semibold text-gray-600">Exam</th>
-                                            <th class="p-3 font-semibold text-gray-600 text-right">Marks</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="marksTableBodyCompare1"></tbody>
-                                </table>
-                            </div>
-                            <div id="student2-result-card" class="bg-white/80 rounded-xl shadow-lg p-4">
-                                <h3 id="student2Name" class="text-2xl font-bold text-center text-gray-800 mb-4"></h3>
-                                <p class="text-center text-gray-700">Rank: <span id="student2Rank" class="font-bold text-lg text-coral-600"></span></p>
-                                <div class="chart-container mt-6">
-                                    <canvas id="marksChartCompare2"></canvas>
+                                <div id="student2-result-card" class="card rounded-xl p-4 border-l-4 border-purple-400">
+                                    <h3 id="student2Name" class="text-2xl font-bold text-center text-gray-200 mb-4"></h3>
+                                    <p class="text-center text-gray-400">Rank: <span id="student2Rank" class="font-bold text-lg text-purple-400"></span></p>
+                                    <div class="chart-container mt-6">
+                                        <canvas id="marksChartCompare2"></canvas>
+                                    </div>
+                                    <h4 class="font-bold text-xl text-gray-200 mb-3 text-center mt-6">Exam Scores</h4>
+                                    <table class="w-full text-left">
+                                        <thead>
+                                            <tr class="border-b-2 border-gray-700">
+                                                <th class="p-3 font-semibold text-gray-400">Exam</th>
+                                                <th class="p-3 font-semibold text-gray-400 text-right">Marks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="marksTableBodyCompare2"></tbody>
+                                    </table>
                                 </div>
-                                <h4 class="font-bold text-lg text-gray-700 mb-3 text-center mt-6">Exam Scores</h4>
-                                <table class="w-full text-left">
-                                    <thead>
-                                        <tr class="border-b-2 border-gray-200">
-                                            <th class="p-3 font-semibold text-gray-600">Exam</th>
-                                            <th class="p-3 font-semibold text-gray-600 text-right">Marks</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="marksTableBodyCompare2"></tbody>
-                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section id="contact-section" class="w-full animate-fade-in">
-                <div class="glass-effect rounded-2xl shadow-2xl shadow-indigo-100 p-6 md:p-10">
+            <!-- Messenger Section -->
+            <section id="messenger-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10 min-h-[500px]">
                     <header class="text-center mb-8">
-                        <h2 class="text-4xl md:text-5xl font-bold text-gray-800">Contact Admin</h2>
-                        <p class="text-lg md:text-xl text-gray-600 mt-1">Get in touch with the coaching center administrator</p>
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Messenger</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Awaiting chat feature implementation...</p>
                     </header>
-                    <div class="max-w-2xl mx-auto text-center text-gray-700 space-y-4">
+                </div>
+            </section>
+
+            <!-- Contact Section -->
+            <section id="contact-section" class="animate-fade-in">
+                <div class="card rounded-2xl p-6 md:p-10">
+                    <header class="text-center mb-8">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gradient">Contact Admin</h2>
+                        <p class="text-lg md:text-xl text-gray-400 mt-2">Get in touch with the coaching center administrator.</p>
+                    </header>
+                    <div class="max-w-2xl mx-auto text-center text-gray-400 space-y-4">
                         <p>For any queries or concerns, you can contact the administrator using the details below:</p>
                         <p class="text-xl font-bold mt-4">
-                            Email: <a href="mailto:princehoque2025@gmail.com" class="text-blue-500 hover:text-blue-700 transition-colors duration-200">princehoque2025@gmail.com</a>
+                            <i class="fas fa-envelope text-blue-400 mr-2"></i> Email: <a href="mailto:princehoque2025@gmail.com" class="text-blue-400 hover:text-blue-200 transition-colors duration-200">princehoque2025@gmail.com</a>
                         </p>
                         <p class="text-xl font-bold">
-                            Phone: <a href="tel:+8801982580534" class="text-blue-500 hover:text-blue-700 transition-colors duration-200">01982580534</a>
+                            <i class="fas fa-phone-alt text-blue-400 mr-2"></i> Phone: <a href="tel:+8801982580534" class="text-blue-400 hover:text-blue-200 transition-colors duration-200">01982580534</a>
                         </p>
                     </div>
                 </div>
             </section>
-            
         </main>
-
+        
         <footer class="text-center mt-8 text-gray-500 text-sm">
             <p>&copy; <span id="currentYear"></span> Bright Minds Coaching Center. All rights reserved.</p>
         </footer>
     </div>
+    
+    <!-- Mobile Bottom Navigation -->
+    <nav id="mobile-nav" class="md:hidden fixed bottom-0 left-0 w-full bg-gray-800/80 backdrop-blur-lg border-t border-gray-700 shadow-lg z-50 transition-transform duration-300 transform translate-y-full">
+        <ul class="flex justify-around items-center h-16">
+            <li><a href="#home-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                <i class="fas fa-home text-xl"></i>
+                <span class="mt-1">Home</span>
+            </a></li>
+            <li><a href="#results-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                <i class="fas fa-chart-bar text-xl"></i>
+                <span class="mt-1">Results</span>
+            </a></li>
+            <li><a href="#compare-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                <i class="fas fa-balance-scale text-xl"></i>
+                <span class="mt-1">Compare</span>
+            </a></li>
+            <li><a href="#messenger-section" class="mobile-nav-link flex flex-col items-center justify-center text-gray-400 hover:text-green-400 transition-colors duration-200 text-sm">
+                <i class="fas fa-comments text-xl"></i>
+                <span class="mt-1">Chat</span>
+            </a></li>
+        </ul>
+    </nav>
+    
+    <!-- Modal UI for Alerts/Errors -->
+    <div id="customModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="text-xl font-bold mb-4"></h3>
+            <p id="modalMessage" class="text-gray-400 mb-6"></p>
+            <button id="modalCloseBtn" class="w-full btn-gradient text-white font-bold py-2 rounded-lg">Close</button>
+        </div>
+    </div>
+
+    <!-- Hidden div for report card PDF generation -->
+    <div id="report-card-print" class="p-6 bg-white text-black" style="display: none; width: 8.5in; min-height: 11in;">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold">Bright Minds Coaching Center</h1>
+            <p class="text-lg">English Batch Report Card</p>
+        </div>
+        <div class="flex justify-between items-center mb-4">
+            <p>Student Name: <span id="printStudentName" class="font-semibold"></span></p>
+            <p>Overall Rank: <span id="printStudentRank" class="font-semibold"></span></p>
+        </div>
+        <h2 class="text-xl font-bold mb-3">Exam Performance</h2>
+        <div id="print-chart-container" class="mb-6">
+            <canvas id="printChartCanvas" width="700" height="350"></canvas>
+        </div>
+        <h2 class="text-xl font-bold mb-3">Scores</h2>
+        <table class="min-w-full divide-y divide-gray-200 border border-gray-300">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Marks</th>
+                </tr>
+            </thead>
+            <tbody id="printTableBody" class="bg-white divide-y divide-gray-200">
+            </tbody>
+        </table>
+        <div class="mt-6 text-sm text-gray-500 text-center">
+            <p>Generated on <span id="printDate"></span></p>
+        </div>
+    </div>
+
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Firebase services
+            if (typeof window.initFirebase === 'function') {
+                window.initFirebase();
+            }
+
             // This is the correct URL for fetching data from the provided Google Sheet.
             // The sheet must be publicly shared as "Anyone with the link can view".
             const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTVgt3oS2T0Eo3LE3_REouxZeMaTdtrTOPBdQxE1i4hVFZ_ytMs__cp4bTwC-ckQ7sGju2MDx9YqTzq/pubhtml?gid=0&single=true';
-
+            
+            // UI Element References
             const searchInputHome = document.getElementById('searchInputHome');
             const suggestionsListHome = document.getElementById('suggestionsListHome');
             const initialMessageHome = document.getElementById('initialMessageHome');
@@ -311,7 +508,10 @@
             const studentRankHomeEl = document.getElementById('studentRankHome');
             const marksTableBodyHome = document.getElementById('marksTableBodyHome');
             const marksCanvasHome = document.getElementById('marksChartHome');
-            
+            const downloadReportBtn = document.getElementById('downloadReportBtn');
+            const totalStudentsCount = document.getElementById('totalStudentsCount');
+            const topRankerName = document.getElementById('topRankerName');
+
             const searchInputCompare1 = document.getElementById('searchInputCompare1');
             const suggestionsListCompare1 = document.getElementById('suggestionsListCompare1');
             const searchInputCompare2 = document.getElementById('searchInputCompare2');
@@ -329,12 +529,15 @@
             const marksTableBodyCompare2 = document.getElementById('marksTableBodyCompare2');
             const marksCanvasCompare2 = document.getElementById('marksChartCompare2');
 
-            const navLinks = document.querySelectorAll('.nav-link');
             const mobileMenuButton = document.getElementById('mobileMenuButton');
-            const mobileMenu = document.getElementById('mobileMenu');
-            
-            document.getElementById('currentYear').textContent = new Date().getFullYear();
+            const mobileNav = document.getElementById('mobile-nav');
 
+            const customModal = document.getElementById('customModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+            
+            // Global Data and State
             let studentsData = [];
             let examAverages = {};
             let charts = {};
@@ -342,10 +545,23 @@
             let lastSearchQueryHome = '';
             let lastSearchQueryCompare1 = '';
             let lastSearchQueryCompare2 = '';
+            const examKeys = ['1st Terminal', 'Model Test 1', '2nd Terminal', 'Final Exam'];
 
+            // Function to show a custom modal instead of alert()
+            const showModal = (title, message) => {
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                customModal.classList.remove('hidden');
+            };
 
+            // Event listener to close the modal
+            modalCloseBtn.addEventListener('click', () => {
+                customModal.classList.add('hidden');
+            });
+            
+            // Function to fetch and process data from the Google Sheet
             const fetchData = async () => {
-                // If there's no data yet, show loading messages. Otherwise, update silently.
+                // Show loading states only on first load
                 if (studentsData.length === 0) {
                     loadingMessageHome.classList.remove('hidden');
                     loadingMessageCompare.classList.remove('hidden');
@@ -356,6 +572,7 @@
                 try {
                     const response = await fetch(SPREADSHEET_URL);
                     const text = await response.text();
+                    // Extract the JSON data from the Google Sheet's HTML response
                     const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\((.*)\);/)[1]);
                     
                     const headers = json.table.cols.map(col => col.label).filter(Boolean);
@@ -370,29 +587,31 @@
                     }).filter(s => s.Name);
                     
                     studentsData = rawStudents.map(student => {
-                        const marks = {
-                            '1st Terminal': student['1st Terminal'],
-                            'Model Test 1': student['Model Test 1'],
-                            '2nd Terminal': student['2nd Terminal'],
-                            'Final Exam': student['Final Exam'],
-                        };
+                        const marks = {};
+                        examKeys.forEach(exam => {
+                            marks[exam] = student[exam] || 0;
+                        });
                         const total = student['Total'];
                         return { ...student, marks, total };
                     });
 
+                    // Sort by total marks to determine rank
                     studentsData.sort((a, b) => b.total - a.total);
-
                     studentsData.forEach((student, index) => {
                         student.rank = index + 1;
                     });
                     
-                    const examKeys = ['1st Terminal', 'Model Test 1', '2nd Terminal', 'Final Exam'];
+                    // Calculate class averages for the chart
                     examKeys.forEach(exam => {
                         const totalMarks = studentsData.reduce((sum, s) => sum + (s.marks[exam] || 0), 0);
                         examAverages[exam] = (totalMarks / studentsData.length).toFixed(2);
                     });
 
-                    // Re-render the visible results with the new data
+                    // Update dashboard stats
+                    totalStudentsCount.textContent = studentsData.length;
+                    topRankerName.textContent = studentsData[0]?.Name || 'N/A';
+
+                    // Re-render any visible results with the new data
                     if (lastSearchQueryHome) {
                         handleSearch(lastSearchQueryHome, 'searchInputHome');
                     }
@@ -402,12 +621,7 @@
 
                 } catch (error) {
                     console.error("Failed to fetch data:", error);
-                    if (studentsData.length === 0) {
-                        notFoundMessageHome.innerHTML = '<p class="text-2xl font-bold">Error</p><p class="text-gray-600 mt-1">Could not fetch results data. Please try again later.</p>';
-                        notFoundMessageHome.classList.remove('hidden');
-                        notFoundMessageCompare.innerHTML = '<p class="text-2xl font-bold">Error</p><p class="text-gray-600 mt-1">Could not fetch results data. Please try again later.</p>';
-                        notFoundMessageCompare.classList.remove('hidden');
-                    }
+                    showModal('Data Error', 'Could not fetch results data. Please check the network connection and try again later.');
                 } finally {
                     loadingMessageHome.classList.add('hidden');
                     loadingMessageCompare.classList.add('hidden');
@@ -418,75 +632,63 @@
                 }
             };
 
-            const displayIndividualResults = (student, containerId, nameElId, rankElId, tableBodyId, canvasId) => {
-                const nameEl = document.getElementById(nameElId);
-                const rankEl = document.getElementById(rankElId);
-                const tableBody = document.getElementById(tableBodyId);
-                const canvas = document.getElementById(canvasId);
-                
-                nameEl.textContent = student.Name;
-                rankEl.textContent = student.rank;
-                
-                const marks = student.marks;
-                const total = student.total;
-
-                tableBody.innerHTML = '';
-                for (const [exam, score] of Object.entries(marks)) {
-                    const row = document.createElement('tr');
-                    row.className = 'border-b border-gray-200/50 last:border-b-0 transition-colors duration-200 hover:bg-gray-100/50';
-                    row.innerHTML = `<td class="p-3">${exam}</td><td class="p-3 text-right font-medium text-gray-800">${score}</td>`;
-                    tableBody.appendChild(row);
-                }
-                const totalRow = document.createElement('tr');
-                totalRow.className = 'bg-gray-100/50';
-                totalRow.innerHTML = `<td class="p-3 font-bold text-gray-700">Total</td><td class="p-3 text-right font-bold text-teal-600">${total}</td>`;
-                tableBody.appendChild(totalRow);
-
+            // Function to generate and render a chart
+            const renderChart = (canvasId, studentData, student2Data = null) => {
                 if (charts[canvasId]) {
                     charts[canvasId].destroy();
                 }
 
-                const chartData = {
-                    labels: Object.keys(marks),
-                    datasets: [
-                        {
-                            label: 'Your Marks',
-                            data: Object.values(marks),
-                            fill: false,
-                            borderColor: 'rgb(59, 130, 246)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                            tension: 0.4,
-                            pointBackgroundColor: 'rgb(59, 130, 246)',
-                            pointBorderColor: '#fff',
-                            pointHoverRadius: 6,
-                        },
-                        {
-                            label: 'Class Average',
-                            data: Object.values(examAverages),
-                            fill: false,
-                            borderColor: 'rgb(244, 114, 182)',
-                            backgroundColor: 'rgba(244, 114, 182, 0.2)',
-                            tension: 0.4,
-                            pointBackgroundColor: 'rgb(244, 114, 182)',
-                            pointBorderColor: '#fff',
-                            pointHoverRadius: 6,
-                            borderDash: [5, 5]
-                        }
-                    ]
-                };
+                const datasets = [{
+                    label: studentData.Name,
+                    data: Object.values(studentData.marks),
+                    borderColor: '#6EE7B7',
+                    backgroundColor: 'rgba(110, 231, 183, 0.2)',
+                    tension: 0.4,
+                    pointBackgroundColor: '#6EE7B7',
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 6,
+                }];
 
-                charts[canvasId] = new Chart(canvas, {
+                if (student2Data) {
+                    datasets.push({
+                        label: student2Data.Name,
+                        data: Object.values(student2Data.marks),
+                        borderColor: '#A78BFA',
+                        backgroundColor: 'rgba(167, 139, 250, 0.2)',
+                        tension: 0.4,
+                        pointBackgroundColor: '#A78BFA',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                    });
+                } else {
+                    // Add class average for single student view
+                    datasets.push({
+                        label: 'Class Average',
+                        data: Object.values(examAverages),
+                        borderColor: '#F87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.2)',
+                        tension: 0.4,
+                        pointBackgroundColor: '#F87171',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        borderDash: [5, 5]
+                    });
+                }
+
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                charts[canvasId] = new Chart(ctx, {
                     type: 'line',
-                    data: chartData,
+                    data: {
+                        labels: examKeys,
+                        datasets: datasets,
+                    },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
                                 position: 'top',
-                                labels: {
-                                    font: { family: 'Inter' }
-                                }
+                                labels: { color: '#d1d5db', font: { family: 'Inter' } }
                             },
                             tooltip: {
                                 callbacks: {
@@ -498,149 +700,236 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: { color: 'rgba(200, 200, 200, 0.2)' },
-                                ticks: { color: '#4b5563', font: { family: 'Inter' } }
+                                grid: { color: '#374151' },
+                                ticks: { color: '#d1d5db', font: { family: 'Inter' } }
                             },
                             x: {
                                 grid: { display: false },
-                                ticks: { color: '#4b5563', font: { family: 'Inter' } }
+                                ticks: { color: '#d1d5db', font: { family: 'Inter' } }
                             }
                         }
                     }
                 });
             };
 
-            const updateSuggestions = (query, listId, inputId) => {
-                const list = document.getElementById(listId);
-                const input = document.getElementById(inputId);
+            // Function to display individual student results
+            const displayIndividualResults = (student, containerId, nameElId, rankElId, tableBodyId, canvasId) => {
+                const nameEl = document.getElementById(nameElId);
+                const rankEl = document.getElementById(rankElId);
+                const tableBody = document.getElementById(tableBodyId);
+                const container = document.getElementById(containerId);
                 
-                list.innerHTML = '';
-                if (!query) {
-                    list.classList.add('hidden');
-                    return;
+                nameEl.textContent = student.Name;
+                rankEl.textContent = student.rank;
+                
+                tableBody.innerHTML = '';
+                for (const [exam, score] of Object.entries(student.marks)) {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-700/50 last:border-b-0 transition-colors duration-200 hover:bg-gray-800/50';
+                    row.innerHTML = `<td class="p-3">${exam}</td><td class="p-3 text-right font-medium text-gray-200">${score}</td>`;
+                    tableBody.appendChild(row);
                 }
-                
-                const filteredStudents = studentsData.filter(s => 
-                    s.Name.toLowerCase().startsWith(query.toLowerCase())
-                );
+                const totalRow = document.createElement('tr');
+                totalRow.className = 'bg-gray-800/50';
+                totalRow.innerHTML = `<td class="p-3 font-bold text-gray-200">Total</td><td class="p-3 text-right font-bold text-green-400">${student.total}</td>`;
+                tableBody.appendChild(totalRow);
 
-                if (filteredStudents.length > 0) {
-                    list.classList.remove('hidden');
-                    filteredStudents.forEach(student => {
-                        const li = document.createElement('li');
-                        li.textContent = student.Name;
-                        li.className = 'p-3 cursor-pointer hover:bg-gray-100/50 transition-colors duration-200 font-inter text-gray-700';
-                        li.addEventListener('click', () => {
-                            input.value = student.Name;
-                            list.classList.add('hidden');
-                            handleSearch(student.Name, inputId);
-                        });
-                        list.appendChild(li);
-                    });
-                } else {
-                    list.classList.add('hidden');
-                }
+                renderChart(canvasId, student);
+                container.classList.remove('hidden');
             };
 
-            const handleSearch = (query, inputId) => {
-                const foundStudent = studentsData.find(s => s.Name.toLowerCase() === query.toLowerCase());
+            // Function to handle PDF generation
+            const downloadReportCard = (student) => {
+                const printContainer = document.getElementById('report-card-print');
+                const printStudentName = document.getElementById('printStudentName');
+                const printStudentRank = document.getElementById('printStudentRank');
+                const printTableBody = document.getElementById('printTableBody');
+                const printDate = document.getElementById('printDate');
+                const printChartCanvas = document.getElementById('printChartCanvas');
+                const printChartContainer = document.getElementById('print-chart-container');
                 
-                if (inputId === 'searchInputHome') {
-                    lastSearchQueryHome = query;
-                    studentResultHome.classList.add('hidden');
-                    initialMessageHome.classList.add('hidden');
-                    notFoundMessageHome.classList.add('hidden');
+                // Populate the hidden print div
+                printStudentName.textContent = student.Name;
+                printStudentRank.textContent = student.rank;
+                printDate.textContent = new Date().toLocaleDateString();
 
-                    if (foundStudent) {
-                        document.getElementById('studentResultHome').classList.remove('hidden');
-                        displayIndividualResults(foundStudent, 'studentResultHome', 'studentNameHome', 'studentRankHome', 'marksTableBodyHome', 'marksChartHome');
-                    } else {
-                        if (query) { // Only show not found if a query was entered
-                            notFoundMessageHome.classList.remove('hidden');
-                        } else {
-                            initialMessageHome.classList.remove('hidden');
+                printTableBody.innerHTML = '';
+                for (const [exam, score] of Object.entries(student.marks)) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td class="px-6 py-3">${exam}</td><td class="px-6 py-3 text-right">${score}</td>`;
+                    printTableBody.appendChild(row);
+                }
+                const totalRow = document.createElement('tr');
+                totalRow.innerHTML = `<td class="px-6 py-3 font-bold">Total</td><td class="px-6 py-3 text-right font-bold">${student.total}</td>`;
+                printTableBody.appendChild(totalRow);
+                
+                // Copy the chart data to a temporary chart for printing
+                if (charts['printChart']) {
+                    charts['printChart'].destroy();
+                }
+                const tempChartData = {
+                    labels: examKeys,
+                    datasets: [{
+                        label: 'Your Marks',
+                        data: Object.values(student.marks),
+                        borderColor: '#6EE7B7',
+                        backgroundColor: 'rgba(110, 231, 183, 0.2)',
+                        tension: 0.4,
+                    },{
+                        label: 'Class Average',
+                        data: Object.values(examAverages),
+                        borderColor: '#F87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.2)',
+                        tension: 0.4,
+                        borderDash: [5, 5]
+                    }]
+                };
+
+                const tempCtx = printChartCanvas.getContext('2d');
+                charts['printChart'] = new Chart(tempCtx, {
+                    type: 'line',
+                    data: tempChartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { font: { family: 'Inter' } }
+                            }
                         }
                     }
-                } else {
-                    compareStudents();
-                }
-            };
-            
-            const compareStudents = () => {
-                const query1 = searchInputCompare1.value.trim();
-                const query2 = searchInputCompare2.value.trim();
-                lastSearchQueryCompare1 = query1;
-                lastSearchQueryCompare2 = query2;
+                });
 
-                studentsComparison.classList.add('hidden');
+                // Use html2canvas and jsPDF to create the PDF
+                html2canvas(printContainer, { scale: 2, useCORS: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'in', 'letter');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`${student.Name.replace(/\s/g, '_')}_Report_Card.pdf`);
+                });
+            };
+
+            downloadReportBtn.addEventListener('click', () => {
+                const studentName = searchInputHome.value;
+                const student = studentsData.find(s => s.Name.toLowerCase() === studentName.toLowerCase());
+                if (student) {
+                    downloadReportCard(student);
+                } else {
+                    showModal('Download Failed', 'Please select a valid student to download the report.');
+                }
+            });
+
+            // Reusable search and suggestion logic
+            const setupSearchInput = (inputEl, suggestionsEl, targetSection) => {
+                inputEl.addEventListener('input', () => {
+                    clearTimeout(debounceTimeout);
+                    debounceTimeout = setTimeout(() => {
+                        const query = inputEl.value.toLowerCase();
+                        if (targetSection === 'home') lastSearchQueryHome = query;
+                        else if (targetSection === 'compare1') lastSearchQueryCompare1 = query;
+                        else lastSearchQueryCompare2 = query;
+
+                        suggestionsEl.innerHTML = '';
+                        if (query.length > 0) {
+                            const filteredStudents = studentsData.filter(s => s.Name.toLowerCase().includes(query)).slice(0, 5);
+                            if (filteredStudents.length > 0) {
+                                filteredStudents.forEach(student => {
+                                    const li = document.createElement('li');
+                                    li.textContent = student.Name;
+                                    li.className = 'px-4 py-2 cursor-pointer hover:bg-gray-700 transition-colors duration-200';
+                                    li.addEventListener('click', () => {
+                                        inputEl.value = student.Name;
+                                        suggestionsEl.classList.add('hidden');
+                                        if (targetSection === 'home') {
+                                            const foundStudent = studentsData.find(s => s.Name === student.Name);
+                                            if (foundStudent) {
+                                                displayIndividualResults(foundStudent, 'studentResultHome', 'studentNameHome', 'studentRankHome', 'marksTableBodyHome', 'marksChartHome');
+                                                initialMessageHome.classList.add('hidden');
+                                                notFoundMessageHome.classList.add('hidden');
+                                            }
+                                        } else {
+                                            compareStudents();
+                                        }
+                                    });
+                                    suggestionsEl.appendChild(li);
+                                });
+                                suggestionsEl.classList.remove('hidden');
+                            } else {
+                                suggestionsEl.classList.add('hidden');
+                            }
+                        } else {
+                            suggestionsEl.classList.add('hidden');
+                        }
+                    }, 300);
+                });
+
+                inputEl.addEventListener('focus', () => {
+                    if (inputEl.value.length > 0) {
+                        suggestionsEl.classList.remove('hidden');
+                    }
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!inputEl.contains(e.target) && !suggestionsEl.contains(e.target)) {
+                        suggestionsEl.classList.add('hidden');
+                    }
+                });
+            };
+
+            // Setup search inputs for home and compare sections
+            setupSearchInput(searchInputHome, suggestionsListHome, 'home');
+            setupSearchInput(searchInputCompare1, suggestionsListCompare1, 'compare1');
+            setupSearchInput(searchInputCompare2, suggestionsListCompare2, 'compare2');
+            
+            // Compare students logic
+            const compareStudents = () => {
+                const student1Name = searchInputCompare1.value;
+                const student2Name = searchInputCompare2.value;
+
+                if (!student1Name || !student2Name) {
+                    studentsComparison.classList.add('hidden');
+                    initialMessageCompare.classList.remove('hidden');
+                    notFoundMessageCompare.classList.add('hidden');
+                    return;
+                }
+
+                const student1 = studentsData.find(s => s.Name.toLowerCase() === student1Name.toLowerCase());
+                const student2 = studentsData.find(s => s.Name.toLowerCase() === student2Name.toLowerCase());
+
+                if (!student1 || !student2) {
+                    studentsComparison.classList.add('hidden');
+                    initialMessageCompare.classList.add('hidden');
+                    notFoundMessageCompare.classList.remove('hidden');
+                    return;
+                }
+
+                displayIndividualResults(student1, 'studentsComparison', 'student1Name', 'student1Rank', 'marksTableBodyCompare1', 'marksChartCompare1');
+                displayIndividualResults(student2, 'studentsComparison', 'student2Name', 'student2Rank', 'marksTableBodyCompare2', 'marksChartCompare2');
+
                 initialMessageCompare.classList.add('hidden');
                 notFoundMessageCompare.classList.add('hidden');
-
-                if (query1 && query2) {
-                    const student1 = studentsData.find(s => s.Name.toLowerCase() === query1.toLowerCase());
-                    const student2 = studentsData.find(s => s.Name.toLowerCase() === query2.toLowerCase());
-
-                    if (student1 && student2) {
-                        studentsComparison.classList.remove('hidden');
-                        displayIndividualResults(student1, 'student1-result-card', 'student1Name', 'student1Rank', 'marksTableBodyCompare1', 'marksChartCompare1');
-                        displayIndividualResults(student2, 'student2-result-card', 'student2Name', 'student2Rank', 'marksTableBodyCompare2', 'marksChartCompare2');
-                    } else {
-                        notFoundMessageCompare.classList.remove('hidden');
-                    }
-                } else {
-                    initialMessageCompare.classList.remove('hidden');
-                }
+                studentsComparison.classList.remove('hidden');
             };
 
-            searchInputHome.addEventListener('input', (e) => {
-                const query = e.target.value.trim();
-                if (debounceTimeout) clearTimeout(debounceTimeout);
-                debounceTimeout = setTimeout(() => { updateSuggestions(query, 'suggestionsListHome', 'searchInputHome'); handleSearch(query, 'searchInputHome'); }, 200);
+            // Mobile menu toggle
+            mobileMenuButton.addEventListener('click', () => {
+                mobileNav.classList.toggle('translate-y-full');
             });
-            searchInputCompare1.addEventListener('input', (e) => {
-                const query = e.target.value.trim();
-                if (debounceTimeout) clearTimeout(debounceTimeout);
-                debounceTimeout = setTimeout(() => { updateSuggestions(query, 'suggestionsListCompare1', 'searchInputCompare1'); compareStudents(); }, 200);
-            });
-            searchInputCompare2.addEventListener('input', (e) => {
-                const query = e.target.value.trim();
-                if (debounceTimeout) clearTimeout(debounceTimeout);
-                debounceTimeout = setTimeout(() => { updateSuggestions(query, 'suggestionsListCompare2', 'searchInputCompare2'); compareStudents(); }, 200);
-            });
-
-            document.addEventListener('click', (e) => {
-                // Check if the click is outside any of the search/suggestion areas
-                const isClickInsideSearchArea = e.target.closest('#home-section .relative') || e.target.closest('#compare-section .relative');
-                if (!isClickInsideSearchArea) {
-                    suggestionsListHome.classList.add('hidden');
-                    suggestionsListCompare1.classList.add('hidden');
-                    suggestionsListCompare2.classList.add('hidden');
-                }
-            });
-
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    document.querySelector('.nav-link.active')?.classList.remove('active');
-                    link.classList.add('active');
-                    mobileMenu.classList.add('hidden');
-                    const targetId = link.getAttribute('href');
-                    document.querySelector(targetId).scrollIntoView({ behavior: 'smooth' });
+            mobileNav.querySelectorAll('.mobile-nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileNav.classList.add('translate-y-full');
                 });
             });
 
-            mobileMenuButton.addEventListener('click', () => {
-                mobileMenu.classList.toggle('hidden');
-            });
-            
-            // This function will now be called to start fetching data regularly
-            const startLiveUpdates = () => {
-                fetchData();
-                // Fetch data every 60 seconds (1 minute) to keep results live
-                setInterval(fetchData, 60000);
-            };
+            // Year for footer
+            document.getElementById('currentYear').textContent = new Date().getFullYear();
 
-            startLiveUpdates();
+            // Initial data fetch
+            fetchData();
         });
     </script>
 </body>
