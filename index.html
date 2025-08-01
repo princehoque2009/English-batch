@@ -4,30 +4,32 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faDownload, faSpinner, faUsers, faAward, faChartBar, faBalanceScale, faHome, faEnvelope, faTimesCircle, faCheckCircle, faExclamationTriangle, faGraduationCap } from '@fortawesome/free-solid-svg-icons';
+import 'chart.js/auto'; // Ensure Chart.js is loaded for use in components
 
-// This is a new, more robust React application for a student results portal.
-// It's designed to be flexible and resilient to issues with the Google Sheet URL.
-// The key new feature is a form that allows the user to input their own public
-// Google Sheet URL, making it easy to update if the original link stops working.
+// This React application is a robust student results portal.
+// It is designed to be more resilient and easier to use than previous versions.
+// The core functionality is to fetch student data from a public Google Sheet,
+// display performance reports, enable student comparisons, and generate PDF report cards.
 //
 // Key Features:
-// - User-provided URL for data fetching, making the app more dynamic.
-// - Real-time loading, success, and error feedback to the user.
-// - Responsive design with a clean, modern aesthetic using Tailwind CSS.
-// - Dynamic performance charts with Chart.js.
-// - Student search and side-by-side comparison.
-// - PDF report card generation.
-//
-// The application is structured with a main App component and several
-// sub-components for a clean, modular design.
+// - A user-configurable Google Sheet URL for fetching data.
+// - Provides a dashboard with key statistics.
+// - Implements a search function with a debounced input for performance.
+// - Renders dynamic performance charts using Chart.js.
+// - Supports a side-by-side comparison of two students.
+// - Generates a downloadable PDF report card for a single student.
+// - Fully responsive layout for both desktop and mobile devices.
 
+// **IMPORTANT:** Replace the SPREADSHEET_URL below with your own "published to the web" Google Sheet URL.
+// Example: Go to File > Share > Publish to the web in your Google Sheet, then copy the link.
+const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTVgt3oS2T0Eo3LE3_REouxZeMaTdtrTOPBdQxE1i4hVFZ_ytMs__cp4bTwC-ckQ7sGju2MDx9YqTzq/pubhtml';
 const examKeys = ['1st Terminal', 'Model Test 1', '2nd Terminal', 'Final Exam'];
 
 // Custom Modal component to handle alerts
-const CustomModal = ({ title, message, onClose, icon }) => (
+const CustomModal = ({ title, message, onClose, icon, isError = false }) => (
   <div className="fixed top-0 left-0 w-full h-full bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
     <div className="bg-gray-800 rounded-xl p-8 shadow-xl max-w-sm w-full text-center">
-      <FontAwesomeIcon icon={icon} className="text-4xl mb-4" />
+      <FontAwesomeIcon icon={icon} className={`text-4xl mb-4 ${isError ? 'text-red-400' : 'text-green-400'}`} />
       <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
       <p className="text-gray-400 mb-6">{message}</p>
       <button onClick={onClose} className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105">
@@ -151,12 +153,12 @@ const StudentResultCard = ({ student, examAverages, chartId, isComparison = fals
 
 
 const App = () => {
-  const [spreadsheetUrl, setSpreadsheetUrl] = useState('');
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState(SPREADSHEET_URL);
   const [studentsData, setStudentsData] = useState([]);
   const [examAverages, setExamAverages] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [modal, setModal] = useState({ visible: false, title: '', message: '', icon: faExclamationTriangle });
+  const [modal, setModal] = useState({ visible: false, title: '', message: '', icon: faExclamationTriangle, isError: false });
   
   const [searchQueryHome, setSearchQueryHome] = useState('');
   const [foundStudentHome, setFoundStudentHome] = useState(null);
@@ -174,11 +176,7 @@ const App = () => {
   const printChartInstanceRef = useRef(null);
 
   // Data fetching logic
-  const fetchData = async () => {
-    if (!spreadsheetUrl) {
-      setModal({ visible: true, title: 'URL Missing', message: 'Please enter a Google Sheet URL.', icon: faExclamationTriangle });
-      return;
-    }
+  const fetchData = async (url) => {
     setLoading(true);
     setStudentsData([]);
     setDataLoaded(false);
@@ -187,7 +185,10 @@ const App = () => {
     setFoundStudentCompare2(null);
 
     try {
-      const response = await fetch(spreadsheetUrl);
+      if (!url) {
+        throw new Error('No Google Sheet URL provided.');
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const text = await response.text();
       const match = text.match(/google\.visualization\.Query\.setResponse\((.*)\);/);
@@ -222,15 +223,18 @@ const App = () => {
       setStudentsData(students);
       setExamAverages(averages);
       setDataLoaded(true);
-      setModal({ visible: true, title: 'Success!', message: 'Data loaded successfully.', icon: faCheckCircle });
     } catch (err) {
       console.error('Failed to fetch or process data:', err);
-      setModal({ visible: true, title: 'Load Error', message: `Could not load data. Please check the URL and ensure the sheet is "published to the web". Error: ${err.message}`, icon: faTimesCircle });
+      setModal({ visible: true, title: 'Load Error', message: `Could not load data. Please check the URL and ensure the sheet is "published to the web". Error: ${err.message}`, icon: faTimesCircle, isError: true });
       setDataLoaded(false);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData(spreadsheetUrl);
+  }, [spreadsheetUrl]);
 
   const debouncedSearchHome = useDebounce((query) => {
     if (query.length === 0) {
@@ -288,7 +292,7 @@ const App = () => {
 
   const downloadReportCard = async () => {
     if (!foundStudentHome) {
-      setModal({ visible: true, title: 'Download Failed', message: 'Please select a valid student to download the report.', icon: faExclamationTriangle });
+      setModal({ visible: true, title: 'Download Failed', message: 'Please select a valid student to download the report.', icon: faExclamationTriangle, isError: true });
       return;
     }
 
@@ -339,7 +343,7 @@ const App = () => {
       pdf.save(`${foundStudentHome.Name.replace(/\s/g, '_')}_Report_Card.pdf`);
     } catch (error) {
       console.error('PDF generation failed:', error);
-      setModal({ visible: true, title: 'Download Error', message: 'Could not generate the report card. Please try again.', icon: faTimesCircle });
+      setModal({ visible: true, title: 'Download Error', message: 'Could not generate the report card. Please try again.', icon: faTimesCircle, isError: true });
     }
   };
 
@@ -366,6 +370,7 @@ const App = () => {
           title={modal.title}
           message={modal.message}
           icon={modal.icon}
+          isError={modal.isError}
           onClose={() => setModal({ ...modal, visible: false })}
         />
       )}
@@ -386,7 +391,7 @@ const App = () => {
                 onChange={(e) => setSpreadsheetUrl(e.target.value)}
               />
               <button
-                onClick={fetchData}
+                onClick={() => fetchData(spreadsheetUrl)}
                 disabled={loading}
                 className="btn-gradient text-white font-bold py-3 px-6 rounded-full shadow-lg flex-shrink-0"
               >
@@ -599,4 +604,3 @@ const App = () => {
 };
 
 export default App;
-
